@@ -668,15 +668,16 @@ class OdooConnector():
             for row in records:
                 lines = self.search_sales_lines(int(row[0]), row[10])
                 
+                serie_completa = str(row[6]) if row[6] is not None else ""
                 # <<< INICIO DEL MAPEO CORREGIDO >>>
                 sale_dict = {
                     'silverpos_id': row[0],
                     'date_order': str(row[1]),
-                    'partner_id': row[3],
+                    'partner_id': row[3],                     # CORRECTO: Usa cli.idodoo
                     'client_order_ref': row[4],
-                    'silverpos_uuid': row[5],
-                    'silverpos_serie_fel': row[6],
-                    'silverpos_numero_fel': row[7],
+                     'silverpos_serie_fel': serie_completa[-5:],  # ¡AQUÍ ESTÁ LA LÓGICA!     # CORREGIDO: Ahora usa venc.serie
+                    'silverpos_numero_fel': str(row[7]),      # CORREGIDO: Ahora usa venc.num_fac_electronica
+                    'silverpos_uuid': str(row[6]),            # CORREGIDO: Ahora usa venc.uuid
                     'silverpos_user_id': row[8],
                     'state': 'draft',
                     'silverpos_order_date': str(row[9]),
