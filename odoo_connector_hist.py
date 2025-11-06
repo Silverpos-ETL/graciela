@@ -447,25 +447,31 @@ class OdooConnector():
     def search_products(self):
         products = []
         connection = self.mysql_connection()
-        if not connection: return []
+        if not connection: 
+            return []
+            
         try:
+            if connection.database != 'silverpos_hist':
+                connection.database = 'silverpos_hist'
+                
             cr = connection.cursor()
-            query = """SELECT p.id, p.nombre, p.codigo, p.erp, p.productos_sub_categoria_id, sc.erp AS sub_categoria_erp
-                       FROM silverpos_hist.hist_productos AS p
-                       JOIN silverpos_hist.hist_productos_sub_categoria AS sc ON p.productos_sub_categoria_id = sc.id
-                       WHERE p.nombre != '' AND p.erp = 0;"""
+            # Consulta simple, sin JOIN a categorías
+            query = """SELECT id, nombre, codigo, erp 
+                       FROM silverpos_hist.hist_productos
+                       WHERE nombre != '' AND erp = 0;"""
             cr.execute(query)
             records = cr.fetchall()
             for row in records:
+                # La validación para evitar duplicados se mantiene, es una buena práctica
                 idodoo_res = self.validate_product_odoo(idsilverpos=int(row[0]))
                 if idodoo_res:
                     self.update_products(idproduct=int(row[0]), idodoo=idodoo_res)
                 else:
+                    # Prepara el diccionario del producto, sin información de categoría
                     product_dict = {
                         'product_id': int(row[0]),
                         'product_name': str(row[1]),
                         'product_code': row[2],
-                        'product_categ_id': row[5],
                     }
                     products.append(product_dict)
             self.logger(datetime=datetime.now(), type='INFO', content=f"Total de productos nuevos a sincronizar: {len(products)}")
@@ -473,7 +479,8 @@ class OdooConnector():
         except Exception as e:
             self.logger(datetime=datetime.now(), type='ERROR', content=f"En search_products: {e}")
         finally:
-            if connection.is_connected(): connection.close()
+            if connection.is_connected(): 
+                connection.close()
         return products
 
     def validate_payment_odoo(self, sale_id=None, payment_id=None):
@@ -530,21 +537,23 @@ class OdooConnector():
     def sync_products_odoo(self):
         try:
             odoo_param = self.get_odoo_config()
-            products = self.search_products()
+            products = self.search_products() # Llama a la nueva función simple
             url, token, db_name = odoo_param.get('url'), odoo_param.get('token'), odoo_param.get('db')
             params = {'api_key': token}
             headers = {'Accept': '*/*', 'db_name': db_name}
             post_url = f"{url}/product.product/create"
+            
             for product in products:
+                # El payload es más simple, no incluye 'categ_id'
                 prod = {
                     'name': product.get('product_name'),
                     'default_code': product.get('product_code'),
                     'silverpos_id': product.get('product_id'),
                     'sale_ok': True,
-                    'purchase_ok': True,
+                    'purchase_ok': True, # O False, según tu necesidad
                     'invoice_policy': 'order',
                     'type': 'product',
-                    'categ_id': product.get('product_categ_id'),
+                    # No se especifica 'categ_id', Odoo usará su valor por defecto
                 }
                 response = requests.post(post_url, data=json.dumps(prod), params=params, headers=headers, stream=True, verify=False)
                 if response.status_code == 200:
