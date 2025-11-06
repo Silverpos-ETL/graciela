@@ -672,11 +672,11 @@ class OdooConnector():
                 sale_dict = {
                     'silverpos_id': row[0],
                     'date_order': str(row[1]),
-                    'partner_id': row[3],                     # CORRECTO: Usa cli.idodoo
+                    'partner_id': row[3],
                     'client_order_ref': row[4],
-                    'silverpos_serie_fel': str(row[5]),       # CORREGIDO: Ahora usa venc.serie
-                    'silverpos_numero_fel': str(row[6]),      # CORREGIDO: Ahora usa venc.num_fac_electronica
-                    'silverpos_uuid': str(row[7]),            # CORREGIDO: Ahora usa venc.uuid
+                    'silverpos_uuid': row[5],
+                    'silverpos_serie_fel': row[6],
+                    'silverpos_numero_fel': row[7],
                     'silverpos_user_id': row[8],
                     'state': 'draft',
                     'silverpos_order_date': str(row[9]),
