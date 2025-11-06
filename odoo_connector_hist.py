@@ -632,48 +632,73 @@ class OdooConnector():
     # --- MÉTODOS DE VENTAS Y PAGOS ---
 
     def search_sales(self):
+        sale_dict = {}
         sales = []
-        connection = self.mysql_connection()
-        if not connection: return []
+        connection = None
+        cr = None
         try:
+            connection = self.mysql_connection()
+            if not connection:
+                return []
+            
+            # Aseguramos que la conexión use la base de datos correcta
+            if connection.database != 'silverpos_hist':
+                connection.database = 'silverpos_hist'
+
             cr = connection.cursor()
             query = """SELECT 
-                        venc.id, venc.fechanegocio, venc.idcliente, cli.no_tours, cli.nombre,
-                        venc.serie, venc.num_doc, venc.uuid, venc.erp, venc.anulado,
-                        venc.cuenta_por_cobrar, venc.valor_propina, venc.num_fac_electronica,
-                        TD.DTE_ElSalvador_tipoDTE
-                       FROM silverpos_hist.hist_venta_enca venc
-                       INNER JOIN silverpos.clientes cli ON cli.id = venc.idcliente
-                       INNER JOIN silverpos.tipo_doc TD ON TD.id = venc.tipodoc
-                       INNER JOIN silverpos_hist.hist_usuarios user ON user.id = venc.idmesero
-                       WHERE venc.erp = 0 AND venc.borrada = 0 AND venc.num_doc > 0 AND venc.terminal > 0 
-                         AND venc.mesa != 'Report' AND venc.fechanegocio >= '2025-02-01';"""
+                            venc.id ,                  -- Índice 0
+                            venc.fechatransaccion,     -- Índice 1
+                            venc.idcliente,            -- Índice 2
+                            cli.idodoo,                -- Índice 3
+                            cli.nombre,                -- Índice 4
+                            venc.serie,                -- Índice 5
+                            venc.num_fac_electronica,  -- Índice 6
+                            venc.uuid,                 -- Índice 7
+                            user.erp,                  -- Índice 8
+                            venc.fechanegocio,         -- Índice 9
+                            venc.valor_propina         -- Índice 10
+                        FROM hist_venta_enca venc
+                        INNER JOIN hist_clientes cli on cli.id = venc.idcliente
+                        INNER JOIN hist_usuarios user on user.id = venc.idmesero
+                        WHERE venc.erp = 0 and venc.borrada = 0 and venc.mesa != 'Report' and venc.anulado = 0 and venc.fechanegocio >= '2024-07-01';"""
+            
             cr.execute(query)
             records = cr.fetchall()
             for row in records:
-                lines = self.search_sales_lines(int(row[0]), row[11])
+                lines = self.search_sales_lines(int(row[0]), row[10])
+                
+                # <<< INICIO DEL MAPEO CORREGIDO >>>
                 sale_dict = {
                     'silverpos_id': row[0],
                     'date_order': str(row[1]),
-                    'partner_id': row[3],
+                    'partner_id': row[3],                     # CORRECTO: Usa cli.idodoo
                     'client_order_ref': row[4],
-                    'silverpos_serie_fel': row[5],
-                    'silverpos_numero_fel': row[6],
+                    'silverpos_serie_fel': str(row[5]),       # CORREGIDO: Ahora usa venc.serie
+                    'silverpos_numero_fel': str(row[6]),      # CORREGIDO: Ahora usa venc.num_fac_electronica
+                    'silverpos_uuid': str(row[7]),            # CORREGIDO: Ahora usa venc.uuid
                     'silverpos_user_id': row[8],
-                    'state': 'cancel' if row[9] else 'draft',
-                    'silverpos_cxc': row[10],
-                    'silverpos_order_date': str(row[1]),
-                    'silverpos_uuid': str(row[12]),
-                    'tipodoc_fel': str(row[13]),
-                    'order_line': lines,
+                    'state': 'draft',
+                    'silverpos_order_date': str(row[9]),
                 }
+                # <<< FIN DEL MAPEO CORREGIDO >>>
+
+                if lines:
+                    sale_dict.update({
+                        'order_line': lines,
+                    })
                 sales.append(sale_dict)
-            cr.close()
+                
+            msg = ("Total number of rows in this query are: %s" % (cr.rowcount))
+            self.logger(datetime=datetime.now(), type='INFO', content=msg)
+            return sales or []
         except Exception as e:
-            self.logger(datetime=datetime.now(), type='ERROR', content=f"En search_sales: {e}")
+            self.logger(datetime=datetime.now(), type='ERROR', content=str(e))
         finally:
-            if connection.is_connected(): connection.close()
-        return sales
+            if connection and connection.is_connected():
+                if cr:
+                    cr.close()
+                connection.close()
 
     def search_sales_lines(self, idorder=None, valor_propina=0):
         lines = []
