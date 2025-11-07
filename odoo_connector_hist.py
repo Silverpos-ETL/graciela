@@ -456,9 +456,20 @@ class OdooConnector():
                 
             cr = connection.cursor()
             # Consulta simple, sin JOIN a categorías
-            query = """SELECT id, nombre, codigo, erp 
-                       FROM silverpos_hist.hist_productos
-                       WHERE nombre != '' AND erp = 0;"""
+            query = """SELECT 
+                                p.id, 
+                                p.nombre, 
+                                p.codigo, 
+                                p.erp, 
+                                p.productos_sub_categoria_id,  
+                                sc.erp AS sub_categoria_erp
+                                
+                            FROM 
+                                silverpos_hist.hist_productos AS p
+                            JOIN 
+                                silverpos_hist.hist_productos_sub_categoria AS sc ON p.productos_sub_categoria_id = sc.id
+                            WHERE 
+                                p.nombre != '' AND p.erp = 0;"""
             cr.execute(query)
             records = cr.fetchall()
             for row in records:
@@ -472,6 +483,7 @@ class OdooConnector():
                         'product_id': int(row[0]),
                         'product_name': str(row[1]),
                         'product_code': row[2],
+                        'product_categ_id': row[5],
                     }
                     products.append(product_dict)
             self.logger(datetime=datetime.now(), type='INFO', content=f"Total de productos nuevos a sincronizar: {len(products)}")
@@ -667,17 +679,21 @@ class OdooConnector():
                             user.erp,                  -- Índice 8
                             venc.fechanegocio,         -- Índice 9
                             venc.valor_propina,         -- Índice 10
-                            TD.DTE_ElSalvador_tipoDTE
+                            TD.DTE_ElSalvador_tipoDTE, -- Índice 11
+                            venc.cuenta_por_cobrar     -- Índice 12
                         FROM hist_venta_enca venc
-                        INNER JOIN hist_clientes cli on cli.id = venc.idcliente
+                        INNER JOIN silverpos.clientes cli on cli.id = venc.idcliente
                         INNER JOIN silverpos.tipo_doc TD On TD.id = venc.tipodoc
-                        INNER JOIN hist_usuarios user on user.id = venc.idmesero
+                        INNER JOIN silverpos_hist.hist_usuarios user on user.id = venc.idmesero
                         WHERE venc.erp = 0 and venc.borrada = 0 and venc.mesa != 'Report' and venc.anulado = 0 and venc.fechanegocio >= '2024-07-01';"""
             
             cr.execute(query)
             records = cr.fetchall()
             for row in records:
                 lines = self.search_sales_lines(int(row[0]), row[10])
+                
+                state_value = 'cancel' if row[8] else 'draft'
+                
                 
                 serie_completa = str(row[6]) if row[6] is not None else ""
                 # <<< INICIO DEL MAPEO CORREGIDO >>>
@@ -690,9 +706,10 @@ class OdooConnector():
                     'silverpos_numero_fel': str(row[7]),      # CORREGIDO: Ahora usa venc.num_fac_electronica
                     'silverpos_uuid': str(row[6]),            # CORREGIDO: Ahora usa venc.uuid
                     'silverpos_user_id': row[8],
-                    'state': 'draft',
+                    'state': state_value,
                     'silverpos_order_date': str(row[9]),
                     'tipodoc_fel':str(row[11]),
+                    'silverpos_cxc': row[12],
                 }
                 # <<< FIN DEL MAPEO CORREGIDO >>>
 
