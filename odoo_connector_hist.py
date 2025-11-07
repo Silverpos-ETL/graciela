@@ -666,9 +666,11 @@ class OdooConnector():
                             venc.uuid,                 -- Índice 7
                             user.erp,                  -- Índice 8
                             venc.fechanegocio,         -- Índice 9
-                            venc.valor_propina         -- Índice 10
+                            venc.valor_propina,         -- Índice 10
+                            TD.DTE_ElSalvador_tipoDTE
                         FROM hist_venta_enca venc
                         INNER JOIN hist_clientes cli on cli.id = venc.idcliente
+                        INNER JOIN silverpos.tipo_doc TD On TD.id = venc.tipodoc
                         INNER JOIN hist_usuarios user on user.id = venc.idmesero
                         WHERE venc.erp = 0 and venc.borrada = 0 and venc.mesa != 'Report' and venc.anulado = 0 and venc.fechanegocio >= '2024-07-01';"""
             
@@ -690,6 +692,7 @@ class OdooConnector():
                     'silverpos_user_id': row[8],
                     'state': 'draft',
                     'silverpos_order_date': str(row[9]),
+                    'tipodoc_fel':str(row[11]),
                 }
                 # <<< FIN DEL MAPEO CORREGIDO >>>
 
