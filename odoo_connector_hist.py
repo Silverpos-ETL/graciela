@@ -682,9 +682,9 @@ class OdooConnector():
                             TD.DTE_ElSalvador_tipoDTE, -- Índice 11
                             venc.cuenta_por_cobrar     -- Índice 12
                         FROM hist_venta_enca venc
-                        INNER JOIN silverpos.clientes cli on cli.id = venc.idcliente
+                        INNER JOIN hist_clientes cli on cli.id = venc.idcliente
                         INNER JOIN silverpos.tipo_doc TD On TD.id = venc.tipodoc
-                        INNER JOIN silverpos_hist.hist_usuarios user on user.id = venc.idmesero
+                        INNER JOIN hist_usuarios user on user.id = venc.idmesero
                         WHERE venc.erp = 0 and venc.borrada = 0 and venc.mesa != 'Report' and venc.anulado = 0 and venc.fechanegocio >= '2024-07-01';"""
             
             cr.execute(query)
