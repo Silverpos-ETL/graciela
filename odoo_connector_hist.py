@@ -671,7 +671,7 @@ class OdooConnector():
                             venc.id ,                  -- Índice 0
                             venc.fechatransaccion,     -- Índice 1
                             venc.idcliente,            -- Índice 2
-                            cli.idodoo,                -- Índice 3
+                            cli.no_tours,              -- Índice 3
                             cli.nombre,                -- Índice 4
                             venc.serie,                -- Índice 5
                             venc.num_fac_electronica,  -- Índice 6
@@ -682,7 +682,7 @@ class OdooConnector():
                             TD.DTE_ElSalvador_tipoDTE, -- Índice 11
                             venc.cuenta_por_cobrar     -- Índice 12
                         FROM hist_venta_enca venc
-                        INNER JOIN hist_clientes cli on cli.id = venc.idcliente
+                        INNER JOIN silverpos.clientes cli on cli.id = venc.idcliente
                         INNER JOIN silverpos.tipo_doc TD On TD.id = venc.tipodoc
                         INNER JOIN hist_usuarios user on user.id = venc.idmesero
                         WHERE venc.erp = 0 and venc.borrada = 0 and venc.mesa != 'Report' and venc.anulado = 0 and venc.fechanegocio >= '2024-07-01';"""
@@ -692,7 +692,7 @@ class OdooConnector():
             for row in records:
                 lines = self.search_sales_lines(int(row[0]), row[10])
                 
-                state_value = 'cancel' if row[8] else 'draft'
+                state_value =  'draft'
                 
                 
                 serie_completa = str(row[6]) if row[6] is not None else ""
